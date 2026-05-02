@@ -1,0 +1,31 @@
+def auto_repr(cls):
+    def __repr__(self):
+        params = [f"{k}={v}" for k, v in self.__dict__.items() if not k.startswith('_')]
+        return f"{cls.__name__}({', '.join(params)})"
+    cls.__repr__ = __repr__
+    return cls
+
+def frozen(cls):
+    orig_init = cls.__init__
+    def new_init(self, *args, **kwargs):
+        orig_init(self, *args, **kwargs)
+        self._frozen = True
+    def __setattr__(self, name, value):
+        if getattr(self, '_frozen', False):
+            raise AttributeError("Клас заморожений")
+        super(cls, self).__setattr__(name, value)
+    cls.__init__ = new_init
+    cls.__setattr__ = __setattr__
+    return cls
+
+@auto_repr
+@frozen
+class Point:
+    def __init__(self, x, y):
+        self.x, self.y = x, y
+
+if __name__ == "__main__":
+    p = Point(1, 2)
+    print(p)
+    try: p.x = 10
+    except AttributeError as e: print(e)
