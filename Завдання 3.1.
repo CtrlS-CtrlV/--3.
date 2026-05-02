@@ -1,0 +1,33 @@
+from datetime import datetime
+
+class SingletonMeta(type):
+    _instances = {}
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+class JSONFormatter:
+    def format(self, level, msg, time):
+        return f'{{"level": "{level}", "msg": "{msg}", "time": "{time}"}}'
+
+class PlainFormatter:
+    def format(self, level, msg, time):
+        return f"[{level}] {time} - {msg}"
+
+class FormatterFactory:
+    _types = {"plain": PlainFormatter, "json": JSONFormatter}
+    @classmethod
+    def create(cls, name): return cls._types[name]()
+
+class Logger(metaclass=SingletonMeta):
+    def __init__(self, fmt="plain"):
+        self.formatter = FormatterFactory.create(fmt)
+    def log(self, level, msg):
+        print(self.formatter.format(level, msg, datetime.now()))
+
+if __name__ == "__main__":
+    l1 = Logger()
+    l2 = Logger()
+    print(f"Is same: {l1 is l2}")
+    l1.log("INFO", "Test message")
