@@ -1,0 +1,75 @@
+import hashlib
+from abc import abstractmethod
+
+class PluginMeta(type):
+    _registry: dict[str, type] = {}
+    REQUIRED_ATTRS = ("name", "version")
+
+    def __new__(mcs, cls_name, bases, namespace):
+        cls = super().__new__(mcs, cls_name, bases, namespace)
+        
+        # Реєструємо лише підкласи (у яких є батьки)
+        if bases:
+            for attr in mcs.REQUIRED_ATTRS:
+                if not hasattr(cls, attr):
+                    raise TypeError(f"Клас {cls_name} має визначити атрибут '{attr}'")
+            
+            mcs._registry[cls.name] = cls
+        return cls
+
+    @classmethod
+    def get_registry(mcs):
+        return mcs._registry.copy()
+
+    @classmethod
+    def create_plugin(mcs, plugin_name: str):
+        if plugin_name not in mcs._registry:
+            raise ValueError(f"Плагін {plugin_name} не знайдено")
+        return mcs._registry[plugin_name]()
+
+class BasePlugin(metaclass=PluginMeta):
+    @abstractmethod
+    def execute(self, data: str) -> str:
+        pass
+
+class UpperPlugin(BasePlugin):
+    name, version = "upper", "1.0"
+    def execute(self, data: str) -> str: return data.upper()
+
+class ReversePlugin(BasePlugin):
+    name, version = "reverse", "1.0"
+    def execute(self, data: str) -> str: return data[::-1]
+
+class CensorPlugin(BasePlugin):
+    name, version = "censor", "1.1"
+    def execute(self, data: str) -> str: return data.replace("Світ", "***")
+
+# Динамічне створення через type()
+HashPlugin = type(
+    "HashPlugin", 
+    (BasePlugin,), 
+    {
+        "name": "hash", 
+        "version": "2.0", 
+        "execute": lambda self, data: hashlib.md5(data.encode()).hexdigest()
+    }
+)
+
+def main():
+    print("Зареєстровані плагіни:")
+    for name, cls in PluginMeta.get_registry().items():
+        print(f"  {name} (v{cls.version}): {cls.__name__}")
+
+    test_data = "Привіт Світ"
+    for name in PluginMeta.get_registry():
+        plugin = PluginMeta.create_plugin(name)
+        print(f"  Виконання {name}: {plugin.execute(test_data)}")
+
+    print("\nПеревірка валідації:")
+    try:
+        class InvalidPlugin(BasePlugin): pass
+    except TypeError as e:
+        print(f"  Помилка: {e}")
+
+if __name__ == "__main__":
+    main()
