@@ -1,0 +1,53 @@
+from dataclasses import dataclass, field
+from datetime import datetime
+
+# Observer
+class EventEmitter:
+    def __init__(self): self._subs = {}
+    def on(self, ev, cb): self._subs.setdefault(ev, []).append(cb)
+    def emit(self, ev, *args): 
+        for cb in self._subs.get(ev, []): cb(*args)
+
+# Strategy
+class SortByPriority:
+    def sort(self, tasks): return sorted(tasks, key=lambda x: x.priority)
+
+# Model
+@dataclass
+class Task:
+    title: str
+    priority: int
+    completed: bool = False
+
+class TaskModel(EventEmitter):
+    def __init__(self):
+        super().__init__()
+        self.tasks = []
+    def add(self, title, prio):
+        t = Task(title, prio)
+        self.tasks.append(t)
+        self.emit("added", t)
+
+# Controller & View
+class TaskView:
+    def render(self, tasks):
+        for i, t in enumerate(tasks):
+            status = "✓" if t.completed else " "
+            print(f"{i}. [{status}] {t.title} (P:{t.priority})")
+
+class TaskController:
+    def __init__(self, model, view):
+        self.model, self.view = model, view
+        self.strategy = SortByPriority()
+        self.model.on("added", lambda t: print(f"Нове завдання: {t.title}"))
+
+    def show(self):
+        sorted_tasks = self.strategy.sort(self.model.tasks)
+        self.view.render(sorted_tasks)
+
+if __name__ == "__main__":
+    m, v = TaskModel(), TaskView()
+    c = TaskController(m, v)
+    m.add("Вивчити метакласи", 1)
+    m.add("Попити кави", 3)
+    c.show()
